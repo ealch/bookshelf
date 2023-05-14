@@ -1,28 +1,80 @@
 /** @jsx jsx */
-import {jsx} from '@emotion/core'
+import { jsx } from '@emotion/core'
 
 import * as React from 'react'
-// 🐨 you're going to need this:
-// import * as auth from 'auth-provider'
-import {AuthenticatedApp} from './authenticated-app'
-import {UnauthenticatedApp} from './unauthenticated-app'
+import * as auth from 'auth-provider'
+import { client } from './utils/api-client'
+import { useAsync } from './utils/hooks'
+import { AuthenticatedApp } from './authenticated-app'
+import { UnauthenticatedApp } from './unauthenticated-app'
+import { FullPageSpinner } from 'components/lib'
+import * as colors from './styles/colors'
 
-function App() {
-  // 🐨 useState for the user
-
-  // 🐨 create a login function that calls auth.login then sets the user
-  // 💰 const login = form => auth.login(form).then(u => setUser(u))
-  // 🐨 create a registration function that does the same as login except for register
-
-  // 🐨 create a logout function that calls auth.logout() and sets the user to null
-
-  // 🐨 if there's a user, then render the AuthenticatedApp with the user and logout
-  // 🐨 if there's not a user, then render the UnauthenticatedApp with login and register
-
-  return <UnauthenticatedApp />
+const ErrorComponent = ({ error }) => {
+  return (
+    <div
+      css={{
+        color: colors.danger,
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <p>Uh oh... There's a problem. Try refreshing the app.</p>
+      <pre>{error.message}</pre>
+    </div>
+  )
 }
 
-export {App}
+async function getUser() {
+  let user = null;
+  const token = await auth.getToken()
+  if (token) {
+    const data = await client('me', { token });
+    user = data.user;
+  }
+  return user;
+}
+
+function App() {
+
+  const {
+    data: user,
+    error,
+    isIdle,
+    isLoading,
+    isSuccess,
+    isError,
+    run,
+    setData,
+  } = useAsync()
+
+  React.useEffect(() => {
+    run(getUser())
+  }, [run])
+
+  const login = (form) => auth.login(form).then(u => setData(u));
+  const register = (form) => auth.register(form).then(u => setData(u));
+  const logout = () => auth.logout().then(() => setData(null));
+
+  if (isLoading || isIdle) {
+    return <FullPageSpinner />
+  }
+
+  if (isError) {
+    return <ErrorComponent error={error} />
+  }
+
+  if (isSuccess) {
+    return user
+      ? <AuthenticatedApp user={user} logout={logout} />
+      : <UnauthenticatedApp login={login} register={register} />
+  }
+}
+
+export { App }
 
 /*
 eslint
