@@ -1,21 +1,19 @@
 /** @jsx jsx */
-import {jsx} from '@emotion/core'
+import { jsx } from '@emotion/core'
 
 import * as React from 'react'
 import debounceFn from 'debounce-fn'
-import {FaRegCalendarAlt} from 'react-icons/fa'
+import { FaRegCalendarAlt } from 'react-icons/fa'
 import Tooltip from '@reach/tooltip'
-import {useParams} from 'react-router-dom'
-// 🐨 you'll need these:
-// import {useQuery, useMutation, queryCache} from 'react-query'
-import {useAsync} from 'utils/hooks'
-import {client} from 'utils/api-client'
-import {formatDate} from 'utils/misc'
+import { useParams } from 'react-router-dom'
+import { useQuery, useMutation, queryCache } from 'react-query'
+import { client } from 'utils/api-client'
+import { formatDate } from 'utils/misc'
 import * as mq from 'styles/media-queries'
 import * as colors from 'styles/colors'
-import {Textarea} from 'components/lib'
-import {Rating} from 'components/rating'
-import {StatusButtons} from 'components/status-buttons'
+import { Textarea } from 'components/lib'
+import { Rating } from 'components/rating'
+import { StatusButtons } from 'components/status-buttons'
 import bookPlaceholderSvg from 'assets/book-placeholder.svg'
 
 const loadingBook = {
@@ -27,30 +25,20 @@ const loadingBook = {
   loadingBook: true,
 }
 
-function BookScreen({user}) {
-  const {bookId} = useParams()
-  // 💣 remove the useAsync call here
-  const {data, run} = useAsync()
+function BookScreen({ user }) {
+  const { bookId } = useParams()
 
-  // 🐨 call useQuery here
-  // queryKey should be ['book', {bookId}]
-  // queryFn should be what's currently passed in the run function below
+  const { data: book = loadingBook } = useQuery({
+    queryKey: ['book', { bookId }],
+    queryFn: (key, { bookId }) => client(`books/${bookId}`, { token: user.token }).then(data => data.book)
+  })
 
-  // 💣 remove the useEffect here (react-query will handle that now)
-  React.useEffect(() => {
-    run(client(`books/${bookId}`, {token: user.token}))
-  }, [run, bookId, user.token])
-
-  // 🐨 call useQuery to get the list item from the list-items endpoint
-  // queryKey should be 'list-items'
-  // queryFn should call the 'list-items' endpoint with the user's token
-  const listItem = null
-  // 🦉 NOTE: the backend doesn't support getting a single list-item by it's ID
-  // and instead expects us to cache all the list items and look them up in our
-  // cache. This works out because we're using react-query for caching!
-
-  const book = data?.book ?? loadingBook
-  const {title, author, coverImageUrl, publisher, synopsis} = book
+  const { data: listItems } = useQuery({
+    queryKey: "list-items",
+    queryFn: () => client("list-items", { token: user.token }).then(data => data.listItems)
+  })
+  const listItem = listItems?.find(item => item.bookId === book.id);
+  const { title, author, coverImageUrl, publisher, synopsis } = book
 
   return (
     <div>
@@ -69,15 +57,15 @@ function BookScreen({user}) {
         <img
           src={coverImageUrl}
           alt={`${title} book cover`}
-          css={{width: '100%', maxWidth: '14rem'}}
+          css={{ width: '100%', maxWidth: '14rem' }}
         />
         <div>
-          <div css={{display: 'flex', position: 'relative'}}>
-            <div css={{flex: 1, justifyContent: 'space-between'}}>
+          <div css={{ display: 'flex', position: 'relative' }}>
+            <div css={{ flex: 1, justifyContent: 'space-between' }}>
               <h1>{title}</h1>
               <div>
                 <i>{author}</i>
-                <span css={{marginRight: 6, marginLeft: 6}}>|</span>
+                <span css={{ marginRight: 6, marginLeft: 6 }}>|</span>
                 <i>{publisher}</i>
               </div>
             </div>
@@ -96,7 +84,7 @@ function BookScreen({user}) {
               )}
             </div>
           </div>
-          <div css={{marginTop: 10, height: 46}}>
+          <div css={{ marginTop: 10, height: 46 }}>
             {listItem?.finishDate ? (
               <Rating user={user} listItem={listItem} />
             ) : null}
@@ -113,15 +101,15 @@ function BookScreen({user}) {
   )
 }
 
-function ListItemTimeframe({listItem}) {
+function ListItemTimeframe({ listItem }) {
   const timeframeLabel = listItem.finishDate
     ? 'Start and finish date'
     : 'Start date'
 
   return (
     <Tooltip label={timeframeLabel}>
-      <div aria-label={timeframeLabel} css={{marginTop: 6}}>
-        <FaRegCalendarAlt css={{marginTop: -2, marginRight: 5}} />
+      <div aria-label={timeframeLabel} css={{ marginTop: 6 }}>
+        <FaRegCalendarAlt css={{ marginTop: -2, marginRight: 5 }} />
         <span>
           {formatDate(listItem.startDate)}{' '}
           {listItem.finishDate ? `— ${formatDate(listItem.finishDate)}` : null}
@@ -131,23 +119,18 @@ function ListItemTimeframe({listItem}) {
   )
 }
 
-function NotesTextarea({listItem, user}) {
-  // 🐨 call useMutation here
-  // the mutate function should call the list-items/:listItemId endpoint with a PUT
-  //   and the updates as data. The mutate function will be called with the updates
-  //   you can pass as data.
-  // 💰 if you want to get the list-items cache updated after this query finishes
-  // then use the `onSettled` config option to queryCache.invalidateQueries('list-items')
-  // 💣 DELETE THIS ESLINT IGNORE!! Don't ignore the exhaustive deps rule please
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const mutate = () => {}
+function NotesTextarea({ listItem, user }) {
+  const [mutate] = useMutation(
+    updates => client(`list-items/${updates.id}`, { method: 'PUT', data: updates, token: user.token }),
+    { onSettled: () => queryCache.invalidateQueries('list-items') }
+  )
   const debouncedMutate = React.useMemo(
-    () => debounceFn(mutate, {wait: 300}),
+    () => debounceFn(mutate, { wait: 300 }),
     [mutate],
   )
 
   function handleNotesChange(e) {
-    debouncedMutate({id: listItem.id, notes: e.target.value})
+    debouncedMutate({ id: listItem.id, notes: e.target.value })
   }
 
   return (
@@ -170,10 +153,10 @@ function NotesTextarea({listItem, user}) {
         id="notes"
         defaultValue={listItem.notes}
         onChange={handleNotesChange}
-        css={{width: '100%', minHeight: 300}}
+        css={{ width: '100%', minHeight: 300 }}
       />
     </React.Fragment>
   )
 }
 
-export {BookScreen}
+export { BookScreen }
