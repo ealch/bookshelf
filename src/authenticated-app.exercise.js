@@ -1,5 +1,4 @@
 /** @jsx jsx */
-import * as React from 'react'
 import { jsx } from '@emotion/core'
 
 import { Routes, Route, Link as RouterLink, useMatch } from 'react-router-dom'
@@ -7,8 +6,7 @@ import { ErrorBoundary } from 'react-error-boundary'
 import { Button, ErrorMessage, FullPageErrorFallback } from './components/lib'
 import * as mq from './styles/media-queries'
 import * as colors from './styles/colors'
-// 🐨 get AuthContext from ./context/auth-context
-import { AuthContext } from 'context/auth-context'
+import { useAuth } from 'context/auth-context'
 import { ReadingListScreen } from './screens/reading-list'
 import { FinishedScreen } from './screens/finished'
 import { DiscoverBooksScreen } from './screens/discover'
@@ -31,7 +29,7 @@ function ErrorFallback({ error }) {
 }
 
 function AuthenticatedApp() {
-  const { user, logout } = React.useContext(AuthContext);
+  const { user, logout } = useAuth();
   return (
     <ErrorBoundary FallbackComponent={FullPageErrorFallback}>
       <div

@@ -1,12 +1,11 @@
 // 🐨 we're going to use React hooks in here now so we'll need React
-import * as React from 'react'
 import { useQuery, useMutation, queryCache } from 'react-query'
 import { setQueryDataForBook } from './books'
 import { client } from './api-client'
-import { AuthContext } from 'context/auth-context.exercise'
+import { useAuth } from 'context/auth-context.exercise'
 
 function useListItems() {
-  const { user } = React.useContext(AuthContext)
+  const { user } = useAuth();
   const { data } = useQuery({
     queryKey: 'list-items',
     queryFn: () =>
@@ -21,7 +20,7 @@ function useListItems() {
 }
 
 function useListItem(bookId) {
-  const { user } = React.useContext(AuthContext)
+  const { user } = useAuth();
   const listItems = useListItems(user)
   return listItems.find(li => li.bookId === bookId) ?? null
 }
@@ -33,7 +32,7 @@ const defaultMutationOptions = {
 }
 
 function useUpdateListItem(options) {
-  const { user } = React.useContext(AuthContext)
+  const { user } = useAuth();
   return useMutation(
     updates =>
       client(`list-items/${updates.id}`, {
@@ -60,7 +59,7 @@ function useUpdateListItem(options) {
 }
 
 function useRemoveListItem(options) {
-  const { user } = React.useContext(AuthContext)
+  const { user } = useAuth();
   return useMutation(
     ({ id }) => client(`list-items/${id}`, { method: 'DELETE', token: user.token }),
     {
@@ -80,7 +79,7 @@ function useRemoveListItem(options) {
 }
 
 function useCreateListItem(options) {
-  const { user } = React.useContext(AuthContext)
+  const { user } = useAuth();
   return useMutation(
     ({ bookId }) => client(`list-items`, { data: { bookId }, token: user.token }),
     { ...defaultMutationOptions, ...options },
