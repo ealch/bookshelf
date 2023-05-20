@@ -11,7 +11,7 @@ import { formatDate } from 'utils/misc'
 import { useBook } from 'utils/books'
 import * as mq from 'styles/media-queries'
 import * as colors from 'styles/colors'
-import { Textarea } from 'components/lib'
+import { Spinner, Textarea } from 'components/lib'
 import { Rating } from 'components/rating'
 import { StatusButtons } from 'components/status-buttons'
 import { ErrorMessage } from 'components/lib'
@@ -104,7 +104,7 @@ function ListItemTimeframe({ listItem }) {
 }
 
 function NotesTextarea({ listItem, user }) {
-  const [mutate, { error, isError }] = useUpdateListItem(user);
+  const [mutate, { error, isError, isLoading }] = useUpdateListItem(user);
   const debouncedMutate = React.useMemo(
     () => debounceFn(mutate, { wait: 300 }),
     [mutate],
@@ -138,6 +138,7 @@ function NotesTextarea({ listItem, user }) {
             />
           ) : null
         }
+        {isLoading ? <Spinner /> : null}
       </div>
       <Textarea
         id="notes"
@@ -145,6 +146,7 @@ function NotesTextarea({ listItem, user }) {
         onChange={handleNotesChange}
         css={{ width: '100%', minHeight: 300 }}
       />
+
     </React.Fragment>
   )
 }
