@@ -21,24 +21,60 @@ const useListItem = (user, bookId) => {
     return listItems?.find(item => item.bookId === bookId) ?? null;
 }
 
+const defaultOptions = {
+    onSettled: () => queryCache.invalidateQueries('list-items'),
+    onError: (err, variables, onMutateValue) => {
+        onMutateValue?.();
+    }
+}
+
 const useUpdateListItem = (user, options) => {
     return useMutation(
         updates => client(`list-items/${updates.id}`, { method: 'PUT', data: updates, token: user.token }),
-        { onSettled: () => queryCache.invalidateQueries('list-items'), ...options }
+        {
+            onMutate: (updatedItem) => {
+                const oldData = queryCache.getQueryData("list-items");
+
+                queryCache.setQueryData("list-items", old => {
+                    return old.map(item => {
+                        return item.id === updatedItem.id ? { ...item, ...updatedItem } : item
+                    })
+                })
+
+                return () => queryCache.setQueryData("list-items", oldData)
+            },
+            ...defaultOptions,
+            ...options
+        }
     )
 }
 
 const useRemoveListItem = (user, options) => {
     return useMutation(
         ({ id }) => client(`list-items/${id}`, { method: 'DELETE', token: user.token }),
-        { onSettled: () => queryCache.invalidateQueries('list-items'), ...options }
+        {
+            onMutate: (removedItem) => {
+                const oldData = queryCache.getQueryData("list-items");
+
+                queryCache.setQueryData("list-items", old => {
+                    return old.filter(item => item.id !== removedItem.id)
+                })
+
+                return () => queryCache.setQueryData("list-items", oldData)
+            },
+            ...defaultOptions,
+            ...options
+        }
     )
 
 }
 const useCreateListItem = (user, options) => {
     return useMutation(
         ({ bookId }) => client(`list-items`, { data: { bookId }, token: user.token }),
-        { onSettled: () => queryCache.invalidateQueries('list-items'), ...options }
+        {
+            ...defaultOptions,
+            ...options
+        }
     )
 }
 
