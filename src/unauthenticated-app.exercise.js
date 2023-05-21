@@ -2,10 +2,9 @@
 import { jsx } from '@emotion/core'
 
 import * as React from 'react'
-import VisuallyHidden from '@reach/visually-hidden'
+
 import {
   Input,
-  CircleButton,
   Button,
   Spinner,
   FormGroup,
@@ -17,7 +16,6 @@ import { useAsync } from './utils/hooks'
 import {
   Modal,
   ModalContents,
-  ModalDismissButton,
   ModalOpenButton
 } from 'components/modal'
 
@@ -72,16 +70,6 @@ function LoginForm({ onSubmit, submitButton }) {
   )
 }
 
-const CloseButton = () => (
-  <div css={{ display: 'flex', justifyContent: 'flex-end' }}>
-    <ModalDismissButton>
-      <CircleButton>
-        <VisuallyHidden>Close</VisuallyHidden>
-        <span aria-hidden>×</span>
-      </CircleButton>
-    </ModalDismissButton>
-  </div>
-)
 
 
 function UnauthenticatedApp() {
@@ -106,24 +94,26 @@ function UnauthenticatedApp() {
           gridGap: '0.75rem',
         }}
       >
-        <Modal aria-label="Login form">
+        <Modal >
           <ModalOpenButton>
             <Button variant="primary">Login</Button>
           </ModalOpenButton>
-          <ModalContents>
-            <CloseButton />
-            <h3 css={{ textAlign: 'center', fontSize: '2em' }}>Login</h3>
-            <LoginForm onSubmit={login} submitButton={<Button variant="primary">Login</Button>} />
+          <ModalContents aria-label="Login form" title="Login">
+            <LoginForm
+              onSubmit={login}
+              submitButton={<Button variant="primary">Login</Button>}
+            />
           </ModalContents>
         </Modal>
-        <Modal aria-label="Registration form">
+        <Modal>
           <ModalOpenButton>
             <Button variant="secondary">Register</Button>
           </ModalOpenButton>
-          <ModalContents>
-            <CloseButton />
-            <h3 css={{ textAlign: 'center', fontSize: '2em' }}>Register</h3>
-            <LoginForm onSubmit={register} submitButton={<Button variant="secondary">Register</Button>} />
+          <ModalContents aria-label="Registration form" title="Register">
+            <LoginForm
+              onSubmit={register}
+              submitButton={<Button variant="secondary">Register</Button>}
+            />
           </ModalContents>
         </Modal>
       </div>
