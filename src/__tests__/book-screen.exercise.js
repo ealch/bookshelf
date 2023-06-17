@@ -1,6 +1,7 @@
 // 🐨 here are the things you're going to need for this test:
 import * as React from 'react'
 import { render } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { queryCache } from 'react-query'
 import { buildUser, buildBook } from 'test/generate'
 import * as auth from 'auth-provider'
@@ -44,7 +45,14 @@ test('renders all the book information', async () => {
 
     // 🐨 use findBy to wait for the book title to appear
     // 📜 https://testing-library.com/docs/dom-testing-library/api-async#findby-queries
+    // Wait...
     await component.findByRole("heading", { name: book.title })
+    // or ...
+    // await waitForElementToBeRemoved(() => [
+    //     ...component.queryAllByLabelText(/loading/i),
+    //     ...component.queryAllByText(/loading/i),
+    //   ])
+
     // 🐨 assert the book's info is in the document
     expect(component.getByText(book.title)).toBeInTheDocument();
     expect(component.getByRole('img')).toHaveAttribute('src', book.coverImageUrl);
@@ -61,9 +69,47 @@ test('renders all the book information', async () => {
     expect(component.queryByLabelText('Start date')).not.toBeInTheDocument()
 })
 
+test('can create a list item for the book', async () => {
+    const user = buildUser()
+    await usersDB.create(user)
+    const authUser = await usersDB.authenticate(user)
+    window.localStorage.setItem(auth.localStorageKey, authUser.token)
+
+    const book = await booksDB.create(buildBook())
+    const route = `/book/${book.id}`
+    window.history.pushState({}, `page title`, route)
+
+    const component = render(<App />, { wrapper: AppProviders })
+
+    // Wait...
+    await component.findByRole("heading", { name: book.title })
+    // or ...
+    // await waitForElementToBeRemoved(() => [
+    //     ...component.queryAllByLabelText(/loading/i),
+    //     ...component.queryAllByText(/loading/i),
+    //   ])
+
+    const addToListButton = component.getByRole("button", { name: 'Add to list' });
+    await userEvent.click(addToListButton)
+
+    // Wait...
+    await component.findByRole("button", { name: 'Mark as read' })
+    // or ...
+    // await waitForElementToBeRemoved(() => [
+    //     ...component.queryAllByLabelText(/loading/i),
+    //     ...component.queryAllByText(/loading/i),
+    //   ])
 
 
 
+    expect(component.getByRole("button", { name: 'Mark as read' })).toBeInTheDocument();
+    expect(component.getByRole("button", { name: 'Remove from list' })).toBeInTheDocument();
+    expect(component.getByRole('textbox', { name: 'Notes' })).toBeInTheDocument()
+    expect(component.getByLabelText('Start date')).toBeInTheDocument()
 
+    expect(component.queryByRole('radio')).not.toBeInTheDocument()
+    expect(component.queryByRole("button", { name: 'Add to list' })).not.toBeInTheDocument();
+    expect(component.queryByRole("button", { name: 'Mark as unread' })).not.toBeInTheDocument();
+})
 
 
