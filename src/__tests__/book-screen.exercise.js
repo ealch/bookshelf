@@ -1,55 +1,42 @@
 // 🐨 here are the things you're going to need for this test:
 import * as React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { queryCache } from 'react-query'
 import { buildUser, buildBook } from 'test/generate'
 import * as auth from 'auth-provider'
 import { AppProviders } from 'context'
 import { App } from 'app'
 
+import * as usersDB from 'test/data/users'
+import * as booksDB from 'test/data/books'
+import * as listItemsDB from 'test/data/list-items'
+
 // 🐨 after each test, clear the queryCache and auth.logout
 afterEach(async () => {
     queryCache.clear()
-    await auth.logout()
+    await Promise.all([
+        auth.logout(),
+        usersDB.reset(),
+        booksDB.reset(),
+        listItemsDB.reset(),
+    ])
+
 })
 
 test('renders all the book information', async () => {
-    // 🐨 "authenticate" the client by setting the auth.localStorageKey in localStorage to some string value (can be anything for now)
-    window.localStorage.setItem(auth.localStorageKey, "TOKEN")
     // 🐨 create a user using `buildUser`
-    const user = buildUser();
+    const user = buildUser()
+    await usersDB.create(user)
+    const authUser = await usersDB.authenticate(user)
+    window.localStorage.setItem(auth.localStorageKey, authUser.token)
+
     // 🐨 create a book use `buildBook`
-    const book = buildBook();
+    const book = await booksDB.create(buildBook())
     // 🐨 update the URL to `/book/${book.id}`
     //   💰 window.history.pushState({}, 'page title', route)
     //   📜 https://developer.mozilla.org/en-US/docs/Web/API/History/pushState
     const route = `/book/${book.id}`
     window.history.pushState({}, `page title`, route)
-
-    const ogFetch = window.fetch;
-    window.fetch = async (url, config) => {
-        // 🐨 reassign window.fetch to another function and handle the following requests:
-        // - url ends with `/bootstrap`: respond with {user, listItems: []}
-        // - url ends with `/list-items`: respond with {listItems: []}
-        // - url ends with `/books/${book.id}`: respond with {book}
-        // 💰 window.fetch = async (url, config) => { /* handle stuff here*/ }
-        // 💰 return Promise.resolve({ok: true, json: async () => ({ /* response data here */ })})
-        let response;
-        if (url.endsWith(`/bootstrap`)) {
-            response = { user: { ...user, token: "TOKEN" }, listItems: [] }
-            return Promise.resolve({ ok: true, json: async () => (response) })
-        }
-        if (url.endsWith(`/list-items`)) {
-            response = { listItems: [] }
-            return Promise.resolve({ ok: true, json: async () => (response) })
-        }
-        if (url.endsWith(`/books/${book.id}`)) {
-            response = { book }
-            return Promise.resolve({ ok: true, json: async () => (response) })
-        }
-        return ogFetch(url, config)
-
-    }
 
     // 🐨 render the App component and set the wrapper to the AppProviders
     // (that way, all the same providers we have in the app will be available in our tests)
