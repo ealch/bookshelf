@@ -1,6 +1,6 @@
 // 🐨 here are the things you're going to need for this test:
 import * as React from 'react'
-import { render } from '@testing-library/react'
+import { render as renderRtl, waitForElementToBeRemoved, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { queryCache } from 'react-query'
 import { buildUser, buildBook } from 'test/generate'
@@ -24,92 +24,72 @@ afterEach(async () => {
 
 })
 
-test('renders all the book information', async () => {
-    // 🐨 create a user using `buildUser`
+const loginAsUser = async () => {
     const user = buildUser()
     await usersDB.create(user)
     const authUser = await usersDB.authenticate(user)
     window.localStorage.setItem(auth.localStorageKey, authUser.token)
+}
 
-    // 🐨 create a book use `buildBook`
-    const book = await booksDB.create(buildBook())
-    // 🐨 update the URL to `/book/${book.id}`
-    //   💰 window.history.pushState({}, 'page title', route)
-    //   📜 https://developer.mozilla.org/en-US/docs/Web/API/History/pushState
-    const route = `/book/${book.id}`
+//  The benefit of using screen is you no longer need to keep the render 
+//  call destructure up-to-date as you add/remove the queries you need. 
+//  You only need to type screen. and let your editor's magic autocomplete 
+//  take care of the rest.
+const waitForLoadingToFinish = () => {
+    return waitForElementToBeRemoved(() => [
+        ...screen.queryAllByLabelText(/loading/i),
+        ...screen.queryAllByText(/loading/i),
+    ])
+}
+
+
+const render = async (route) => {
+    await loginAsUser();
     window.history.pushState({}, `page title`, route)
 
-    // 🐨 render the App component and set the wrapper to the AppProviders
-    // (that way, all the same providers we have in the app will be available in our tests)
-    const component = render(<App />, { wrapper: AppProviders })
+    renderRtl(<App />, { wrapper: AppProviders })
+    await waitForLoadingToFinish();
+}
 
-    // 🐨 use findBy to wait for the book title to appear
-    // 📜 https://testing-library.com/docs/dom-testing-library/api-async#findby-queries
-    // Wait...
-    await component.findByRole("heading", { name: book.title })
-    // or ...
-    // await waitForElementToBeRemoved(() => [
-    //     ...component.queryAllByLabelText(/loading/i),
-    //     ...component.queryAllByText(/loading/i),
-    //   ])
+test('renders all the book information', async () => {
+    const book = await booksDB.create(buildBook())
+    const route = `/book/${book.id}`
+    await render(route);
 
-    // 🐨 assert the book's info is in the document
-    expect(component.getByText(book.title)).toBeInTheDocument();
-    expect(component.getByRole('img')).toHaveAttribute('src', book.coverImageUrl);
-    expect(component.getByText(book.author)).toBeInTheDocument();
-    expect(component.getByText(book.publisher)).toBeInTheDocument();
-    expect(component.getByText(book.synopsis)).toBeInTheDocument();
-    expect(component.getByRole("button", { name: 'Add to list' })).toBeInTheDocument();
+    expect(screen.getByText(book.title)).toBeInTheDocument();
+    expect(screen.getByRole('img')).toHaveAttribute('src', book.coverImageUrl);
+    expect(screen.getByText(book.author)).toBeInTheDocument();
+    expect(screen.getByText(book.publisher)).toBeInTheDocument();
+    expect(screen.getByText(book.synopsis)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: 'Add to list' })).toBeInTheDocument();
 
-    expect(component.queryByRole("button", { name: 'Mark as unread' })).not.toBeInTheDocument();
-    expect(component.queryByRole("button", { name: 'Mark as read' })).not.toBeInTheDocument();
-    expect(component.queryByRole("button", { name: 'Remove from list' })).not.toBeInTheDocument();
-    expect(component.queryByRole('textbox', { name: 'Notes' })).not.toBeInTheDocument()
-    expect(component.queryByRole('radio')).not.toBeInTheDocument()
-    expect(component.queryByLabelText('Start date')).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: 'Mark as unread' })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: 'Mark as read' })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: 'Remove from list' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Notes' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument()
 })
 
 test('can create a list item for the book', async () => {
-    const user = buildUser()
-    await usersDB.create(user)
-    const authUser = await usersDB.authenticate(user)
-    window.localStorage.setItem(auth.localStorageKey, authUser.token)
-
     const book = await booksDB.create(buildBook())
     const route = `/book/${book.id}`
-    window.history.pushState({}, `page title`, route)
+    await render(route);
 
-    const component = render(<App />, { wrapper: AppProviders })
-
-    // Wait...
-    await component.findByRole("heading", { name: book.title })
-    // or ...
-    // await waitForElementToBeRemoved(() => [
-    //     ...component.queryAllByLabelText(/loading/i),
-    //     ...component.queryAllByText(/loading/i),
-    //   ])
-
-    const addToListButton = component.getByRole("button", { name: 'Add to list' });
+    const addToListButton = screen.getByRole("button", { name: 'Add to list' });
     await userEvent.click(addToListButton)
 
-    // Wait...
-    await component.findByRole("button", { name: 'Mark as read' })
-    // or ...
-    // await waitForElementToBeRemoved(() => [
-    //     ...component.queryAllByLabelText(/loading/i),
-    //     ...component.queryAllByText(/loading/i),
-    //   ])
+    await waitForLoadingToFinish();
 
 
+    expect(screen.getByRole("button", { name: 'Mark as read' })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: 'Remove from list' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Notes' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Start date')).toBeInTheDocument()
 
-    expect(component.getByRole("button", { name: 'Mark as read' })).toBeInTheDocument();
-    expect(component.getByRole("button", { name: 'Remove from list' })).toBeInTheDocument();
-    expect(component.getByRole('textbox', { name: 'Notes' })).toBeInTheDocument()
-    expect(component.getByLabelText('Start date')).toBeInTheDocument()
-
-    expect(component.queryByRole('radio')).not.toBeInTheDocument()
-    expect(component.queryByRole("button", { name: 'Add to list' })).not.toBeInTheDocument();
-    expect(component.queryByRole("button", { name: 'Mark as unread' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: 'Add to list' })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: 'Mark as unread' })).not.toBeInTheDocument();
 })
 
 
