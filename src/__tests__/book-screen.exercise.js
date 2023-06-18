@@ -1,9 +1,11 @@
 
 import { buildBook, buildListItem } from 'test/generate'
+import { server, rest } from 'test/server'
 import * as booksDB from 'test/data/books'
 import * as listItemsDB from 'test/data/list-items'
 import { render, screen, userEvent, waitForLoadingToFinish, loginAsUser } from 'test/app-test-utils';
 import { formatDate } from 'utils/misc';
+
 
 
 async function renderBookScreen({ user, book, listItem } = {}) {
@@ -112,6 +114,52 @@ test('can edit a note', async () => {
 
     expect(await listItemsDB.read(listItem.id)).toMatchObject({
         notes: newNotes,
+    })
+})
+
+const apiURL = process.env.REACT_APP_API_URL
+describe("console.error messages", () => {
+    beforeEach(() => {
+        const noop = () => { }
+        // mockImplementation(noop) to remove console.error in the test console
+        jest.spyOn(console, 'error').mockImplementation(noop)
+    })
+
+    afterEach(() => {
+        console.error.mockRestore()
+    })
+
+    test('shows an error message when the book fails to load', async () => {
+        await renderBookScreen({ book: { ...buildBook(), id: 'NA' }, listItem: null });
+        expect(screen.queryByRole('alert')).toHaveTextContent("There was an error: Book not found")
+    })
+
+    test('note update failures are displayed', async () => {
+
+        // setup endpoint
+        const testErrorMessage = 'ERROR 400'
+        server.use(
+            rest.put(`${apiURL}/list-items/:listItemId`, async (req, res, ctx) => {
+                return res(
+                    ctx.status(400),
+                    ctx.json({ status: 400, message: testErrorMessage }),
+                )
+            }),
+        )
+
+        jest.useFakeTimers()
+        await renderBookScreen()
+
+        const newNotes = "This is a note!"
+        const notesTextarea = screen.getByRole('textbox', { name: "Notes" })
+        await fakeTimerUserEvent.type(notesTextarea, newNotes)
+
+        await screen.findByLabelText("loading")
+        await waitForLoadingToFinish()
+
+        expect(screen.getByRole('alert').textContent).toBe(
+            `There was an error: ${testErrorMessage}`,
+        )
     })
 })
 
