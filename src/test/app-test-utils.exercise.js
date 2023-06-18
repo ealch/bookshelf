@@ -14,6 +14,7 @@ const loginAsUser = async () => {
     await usersDB.create(user)
     const authUser = await usersDB.authenticate(user)
     window.localStorage.setItem(auth.localStorageKey, authUser.token)
+    return authUser;
 }
 
 //  The benefit of using screen is you no longer need to keep the render 
@@ -28,8 +29,8 @@ const waitForLoadingToFinish = () => {
 }
 
 
-const render = async (route) => {
-    await loginAsUser();
+const render = async ({ user, route }) => {
+    user = user ?? await loginAsUser();
     window.history.pushState({}, `page title`, route)
 
     renderRtl(<App />, { wrapper: AppProviders })
